@@ -1,0 +1,291 @@
+<html>
+<head>
+<style type="text/css">
+	body, canvas, div, img
+	{
+		margin:0;
+		padding:0;
+		border:0;
+		vertical-align:baseline;
+	}
+	body
+	{
+    	background: #000;
+    	background: -webkit-linear-gradient(#000,#AAA);
+    	background:    -moz-linear-gradient(#000,#FFF);
+    	background:      -o-linear-gradient(#000,#FFF);
+    	background:         linear-gradient(#000,#FFF);
+	}
+	#canvas
+	{
+		display:block;
+		cbackground:url(universe1.jpg) center;
+		border:groove 3px #999;
+		margin:10px auto;
+		
+		background: #000;
+    	background: -webkit-radial-gradient(#FFF,#000);
+    	background:    -moz-radial-gradient(#FFF,#000);
+    	background:      -o-radial-gradient(#FFF,#000);
+    	background:         radial-gradient(#FFF,000)
+	}
+	#message
+	{
+		margin:0px auto;
+		display:block;
+		position:relative;
+		border:3px inset #030;
+		top:0px;
+		width:900px;
+		height:20px;
+		
+		background: #CCC;
+    	background: -webkit-linear-gradient(#FFF,#CCC);
+    	background:    -moz-linear-gradient(#FFF,#CCC);
+    	background:      -o-linear-gradient(#FFF,#CCC);
+    	background:         linear-gradient(#FFF,#CCC);
+	}
+	#score
+	{
+		display:block;
+		margin:0px auto;
+		position:absolute;
+		bottom:0px;
+		width:900px;
+		height:20px;
+		text-align:center;
+	}
+	#high
+	{
+		display:block;
+		margin:0px auto;
+		position:absolute;
+		bottom:0px;
+		width:900px;
+		height:20px;
+		text-align:left;
+	}
+	#tries
+	{
+		display:block;
+		margin:0px auto;
+		position:absolute;
+		bottom:0px;
+		width:900px;
+		height:20px;
+		text-align:right;
+	}
+</style>
+<script type="text/javascript" src="jquery-1.7.2.min.js"></script>
+<script type="text/javascript" src="jquery_cookie.js"></script>
+<script type="text/javascript" src="cookie.js"></script>
+<script type="application/javascript">
+var game;
+var play = true;
+var pause = false;
+var canvas;
+var WIDTH,HEIGHT;
+var pos_x;
+var pos_y;
+var play_rad;
+var x = new Array();	// Position of small balls
+var y = new Array();
+var dr = new Array();	// Speed:radial
+var dw = new Array();	// Speed:angular
+var dx = new Array();	// Speed:x
+var dy = new Array();	// Speed:y
+var r = new Array();	// Position:radial
+var MAX_dr = 6,MIN_dr = 3;	// Spreading speed
+var MAX_dw = .6,MIN_dw = .3;	// Rotational speed
+var I;
+var n = 30;
+var i=0;
+var radius = 15;
+var w = 0;	//Steering speed
+var colour = new Array("#80FF00","#15A4F0","#FF6F0F");
+
+var tries = -1;
+var score = 0;
+var score_t = -.1;	// Max. score in a try
+var high = 0;
+
+function doKeyDown(evt)
+{
+	switch (evt.keyCode)
+	{
+		case 80:	// Pause the game
+			if( pause && play )
+			{
+				pause = false;
+				I = setInterval("draw();",30);
+			}
+			else if(play)
+			{
+				pause = true;
+				clearInterval(I);
+			}
+			break;
+		case 78:	// Start a new game
+			if( !play )
+			{
+				new_game();
+			}
+			break;
+		case 37:	// Left arrow
+			w = -3;
+			break;
+		case 39:	// Right arrow
+			w = +3;
+			break;
+	}
+}
+function doKeyUp(evt)
+{
+	w=0;
+}
+function init()
+{
+	canvas=document.getElementById("canvas");
+	game = canvas.getContext("2d");
+	temp= $.cookie("game2");
+	if(temp)
+		high=parseInt(temp);
+	WIDTH = canvas.width;
+	HEIGHT = canvas.height;
+	
+	pos_x = 0;
+	pos_y = .45*HEIGHT;
+	play_rad = .025*HEIGHT;
+	
+	score = 0;
+	score_t = -.1;
+	
+	game.translate( WIDTH/2 , HEIGHT/2 );
+	
+	new_game();
+}
+function new_game()
+{
+	play = false;
+	
+	for( i=0; i<n; i++ )
+		rand_pos();
+	
+	tries+=1;
+	score_t = -0.1;
+	score = 0;
+	
+	play = true;
+	I = setInterval("draw();",30);
+}
+function circle(X,Y,r,colour1,colour2)
+{
+	var grad = game.createRadialGradient(X,Y,r/2, X,Y,r);
+	grad.addColorStop(0, colour2);
+	grad.addColorStop(1, colour1);
+	game.fillStyle = grad;
+	game.beginPath();
+	game.arc(X, Y, r, 0, Math.PI*2, true); 
+	game.closePath();
+	game.fill();
+}
+function clear()
+{
+	game.clearRect( -WIDTH/2, -HEIGHT/2, WIDTH, HEIGHT);
+}
+function rand_pos()
+{
+	x[i] = Math.random()*WIDTH*.1  -  WIDTH*.1/2;
+	y[i] = Math.random()*HEIGHT*.1 - HEIGHT*.1/2;
+	
+	dr[i] = Math.random()*MAX_dr + MIN_dr ;
+	dw[i] = Math.random()*MAX_dw + MIN_dw ;
+	
+	//--Normalise to unity--
+	r[i] = Math.sqrt(x[i]*x[i]+y[i]*y[i]);
+	x[i]/=r[i];dx[i]=dr[i]*x[i];x[i]*=20;
+	y[i]/=r[i];dy[i]=dr[i]*y[i];y[i]*=20;
+	
+}
+function check_bounds()
+{
+	if( (x[i]-20 < -WIDTH/2) || (x[i]+20 >  WIDTH/2) || (y[i]-20 < -WIDTH/2) || (y[i]+20 > WIDTH/2) )
+		rand_pos();
+}
+function check_collision()
+{
+	var t = play_rad+6;
+	if( (x[i]>pos_x-t) && (x[i]<pos_x+t) && (y[i]>pos_y-play_rad) && (y[i]<pos_y+t) )
+	{
+		gameover();
+	}
+}
+function gameover()
+{
+	clearInterval(I);
+	$.cookie("game2",''+high, { expires: 365 });	// Write highscore into the cookie
+	play = false;
+	document.getElementById("msg").innerHTML="You have been hit!!";
+	circle(x[i],y[i],r[i]/15,'maroon','red');
+}
+function scoring()
+{
+	score_t+=.1 + .1*Math.abs(w);
+	score = Math.floor(score_t);
+	if( score> high )
+		high = score;
+	
+	document.getElementById("score").innerHTML="<b>SCORE  </b> : " + score;
+	//document.getElementById("count").innerHTML="<b>No. of balls</b> : " + n;
+	document.getElementById("tries").innerHTML="<b>TRIES</b> : " + tries;
+	document.getElementById("high").innerHTML="<b>HIGHSCORE   </b> : " + high;
+	document.getElementById("msg").innerHTML="";
+}
+function rand_color()
+{
+	var color = Math.floor(Math.random() * 16777216).toString(16);
+	return '#000000'.slice(0, -color.length) + color;
+}
+function draw()
+{
+	clear();
+	circle(pos_x,pos_y,play_rad,'#000',colour[score%3]);
+	//circle(pos_x,pos_y,play_rad/2,colour[score%3],'#FFF');
+	for( i=0; i<n; i++ )
+	{
+		check_bounds();
+		circle(x[i],y[i],Math.max(7,r[i]/15),'black',colour[i%3]);
+		check_collision();
+		
+		// Update position
+		x[i]+=dx[i]-dy[i]*(dw[i]+w);
+		y[i]+=dy[i]+dx[i]*(dw[i]+w);
+		
+		r[i] = Math.sqrt(x[i]*x[i]+y[i]*y[i]);
+		
+		// Update velocity
+		dx[i]=dr[i]*x[i]/r[i];
+		dy[i]=dr[i]*y[i]/r[i];
+		
+	}
+	scoring();
+}
+window.addEventListener('keydown',doKeyDown,true);
+window.addEventListener('keyup',  doKeyUp,  true);
+
+</script>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<title>Game2</title>
+</head>
+<body onLoad="init();">
+	<p style="position:absolute; top:300px; left:10px; color:#FFF">N - New Game<br>P - Pause<br>Steer LEFT or RIGHT</p>
+	<canvas id="canvas" width="900" height="600" ></canvas>
+    <div id="message">
+		<div id="msg"  ></div>
+		<div id="score"></div>
+		<div id="high" ></div>
+	    <div id="count"></div>
+		<div id="tries"></div>
+    </div>
+</body>
+</html>
